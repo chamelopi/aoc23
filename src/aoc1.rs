@@ -1104,6 +1104,8 @@ mod tests {
 }
 
 pub fn aoc1() {
+    println!("AOC 1");
+
     let sum: u32 = calculate_sum(INPUT);
     println!("Sum is {}", sum);
 
