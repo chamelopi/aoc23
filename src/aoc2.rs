@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::{collections::HashMap, error::Error, vec::Vec};
+use std::{collections::HashMap, vec::Vec};
 
 use regex::Regex;
 
@@ -106,7 +106,9 @@ Game 98: 5 green, 5 red, 11 blue; 1 red, 10 blue, 7 green; 8 red, 1 blue, 7 gree
 Game 99: 3 green, 7 red, 4 blue; 9 red, 13 blue, 2 green; 3 red, 2 green, 11 blue; 5 red, 6 blue, 3 green; 8 blue, 5 green, 6 red; 6 green, 13 red, 1 blue
 Game 100: 9 green, 7 blue; 1 green, 3 red, 4 blue; 15 red, 9 green; 3 blue, 6 red, 13 green; 2 red, 11 blue, 12 green";
 
-#[derive(Eq, PartialEq, Hash)]
+static COLORS: [Color; 3] = [Color::Red, Color::Green, Color::Blue];
+
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 enum Color {
     Red,
     Green,
@@ -133,10 +135,8 @@ struct Game {
 
 impl Game {
     fn possible(&self, config: &Configuration) -> bool {
-        const COLORS: [Color; 3] = [Color::Red, Color::Green, Color::Blue];
-
         for cubes in self.cubes_shown.iter() {
-            for color in COLORS {
+            for color in COLORS.iter() {
                 if let Some(count) = cubes.get(&color) {
                     if *count > config[&color] {
                         return false;
@@ -145,6 +145,23 @@ impl Game {
             }
         }
         true
+    }
+
+    fn get_min_config(&self) -> HashMap<Color, u32> {
+        let mut base_config = HashMap::from([
+            (Color::Red, 0),
+            (Color::Green, 0),
+            (Color::Blue, 0),
+        ]);
+
+        for cubes in self.cubes_shown.iter() {
+            for color in COLORS.iter() {
+                base_config.insert(color.clone(), 
+                cubes.get(&color).unwrap_or(&0).to_owned().max(base_config[&color]));
+            }
+        }
+
+        base_config
     }
 }
 
@@ -189,9 +206,17 @@ fn parse_games(input: &str) -> Result<Vec<Game>> {
     Ok(games)
 }
 
+fn sum_of_power(input: &str) -> u32 {
+    parse_games(input).expect("Could not parse games!")
+        .iter()
+        .map(Game::get_min_config)
+        .map(|min_config| min_config[&Color::Red] * min_config[&Color::Green] * min_config[&Color::Blue])
+        .sum()
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::aoc2::sum_of_possible_ids;
+    use crate::aoc2::{sum_of_possible_ids, sum_of_power};
 
     #[test]
     fn it_works() {
@@ -203,9 +228,21 @@ mod tests {
 
         assert_eq!(8, sum_of_possible_ids(test_input));
     }
+
+    #[test]
+    fn minimum_number_of_cubes() {
+        let test_input = "Game 1: 3 blue, 4 red; 1 red, 2 green, 6 blue; 2 green
+        Game 2: 1 blue, 2 green; 3 green, 4 blue, 1 red; 1 green, 1 blue
+        Game 3: 8 green, 6 blue, 20 red; 5 blue, 4 red, 13 green; 5 green, 1 red
+        Game 4: 1 green, 3 red, 6 blue; 3 green, 6 red; 3 green, 15 blue, 14 red
+        Game 5: 6 red, 1 blue, 3 green; 2 blue, 1 red, 2 green";
+
+        assert_eq!(2286, sum_of_power(test_input));
+    }
 }
 
 pub fn aoc2() {
     println!("AOC 2");
     println!("Sum is: {}", sum_of_possible_ids(INPUT));
+    println!("Sum of power is: {}", sum_of_power(INPUT));
 }
